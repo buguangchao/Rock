@@ -17,21 +17,29 @@
 using System;
 using System.Collections.Generic;
 
-using DotLiquid;
-
 using Rock.Web.Cache;
 
 namespace Rock.Financial
 {
     /// <summary>
-    /// Information about a scheduled payment transaction that has been processed
+    /// Information about a payment transaction that has been processed
     /// </summary>
     public class Payment
     {
         /// <summary>
-        /// Gets or sets the amount.
+        /// Gets or sets the gross amount.
         /// </summary>
         public decimal Amount { get; set; }
+
+        /// <summary>
+        /// Gets or sets the net amount (Amount minus FeeAmount).
+        /// </summary>
+        public decimal? NetAmount { get; set; }
+
+        /// <summary>
+        /// Gets or sets the fee amount.
+        /// </summary>
+        public decimal? FeeAmount { get; set; }
 
         /// <summary>
         /// Gets or sets the transaction code.

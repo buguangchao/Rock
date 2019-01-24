@@ -60,7 +60,7 @@ namespace Rock.Financial
         private int? _currentNumberOfPaymentsForSchedule;
 
         // Results
-        private FinancialTransaction _financialTransaction;
+        private Payment _payment;
 
         /// <summary>
         /// Create a new payment processor to handle a single automated payment.
@@ -86,7 +86,7 @@ namespace Rock.Financial
             _financialTransactionService = new FinancialTransactionService( _rockContext );
             _financialScheduledTransactionService = new FinancialScheduledTransactionService( _rockContext );
 
-            _financialTransaction = null;
+            _payment = null;
         }
 
         /// <summary>
@@ -385,9 +385,9 @@ namespace Rock.Financial
         {
             errorMessage = string.Empty;
 
-            if ( _financialTransaction != null )
+            if ( _payment != null )
             {
-                errorMessage = "A transaction has already been produced";
+                errorMessage = "A payment has already been produced";
                 return null;
             }
 
@@ -409,7 +409,16 @@ namespace Rock.Financial
             _referencePaymentInfo.Amount = _automatedPaymentArgs.AutomatedPaymentDetails.Sum( d => d.Amount );
             _referencePaymentInfo.Email = _authorizedPerson.Email;
 
-            _financialTransaction = ( _automatedGatewayComponent as IAutomatedGatewayComponent ).AutomatedCharge( _financialGateway, _referencePaymentInfo, out errorMessage );
+            var transactionGuid = Guid.NewGuid();
+
+            var metadata = new Dictionary<string, string>
+            {
+                ["giving_system"] = "RockRMS",
+                ["transaction_guid"] = transactionGuid.ToString(),
+            };
+
+            var automatedGatewayComponent = _automatedGatewayComponent as IAutomatedGatewayComponent;
+            _payment = automatedGatewayComponent.AutomatedCharge( _financialGateway, _referencePaymentInfo, out errorMessage );
 
             if ( !string.IsNullOrEmpty( errorMessage ) )
             {
@@ -417,15 +426,13 @@ namespace Rock.Financial
                 return null;
             }
 
-            if ( _financialTransaction == null )
+            if ( _payment == null )
             {
-                errorMessage = "Error charging: transaction was not created";
+                errorMessage = "Error charging: payment was not created";
                 return null;
             }
 
-            SaveTransaction();
-
-            return _financialTransaction;
+            return SaveTransaction( transactionGuid );
         }
 
         /// <summary>
@@ -513,46 +520,64 @@ namespace Rock.Financial
         }
 
         /// <summary>
-        /// Once _financialTransaction is set, this method stores the transaction in the database along with the appropriate details and batch information.
+        /// Once _financialTransaction is set, this method stores the transaction in the database along with the
+        /// appropriate details and batch information.
         /// </summary>
-        private void SaveTransaction()
+        private FinancialTransaction SaveTransaction( Guid transactionGuid )
         {
-            if ( _financialTransaction.Guid.Equals( default( Guid ) ) )
+            var financialTransaction = new FinancialTransaction
             {
-                _financialTransaction.Guid = Guid.NewGuid();
+                TransactionCode = _payment.TransactionCode,
+                Guid = transactionGuid,
+                CreatedByPersonAliasId = _currentPersonAliasId,
+                ScheduledTransactionId = _automatedPaymentArgs.ScheduledTransactionId,
+                AuthorizedPersonAliasId = _automatedPaymentArgs.AuthorizedPersonAliasId,
+                ShowAsAnonymous = _automatedPaymentArgs.ShowAsAnonymous,
+                TransactionDateTime = RockDateTime.Now,
+                FinancialGatewayId = _financialGateway.Id,
+                TransactionTypeValueId = _transactionType.Id,
+                Summary = _referencePaymentInfo.Comment1,
+                SourceTypeValueId = _financialSource.Id,
+                IsSettled = _payment.IsSettled,
+                Status = _payment.Status,
+                StatusMessage = _payment.StatusMessage
+            };            
+            
+            if ( financialTransaction.FinancialPaymentDetail == null )
+            {
+                financialTransaction.FinancialPaymentDetail = new FinancialPaymentDetail();
             }
 
-            _financialTransaction.CreatedByPersonAliasId = _currentPersonAliasId;
-            _financialTransaction.ScheduledTransactionId = _automatedPaymentArgs.ScheduledTransactionId;
-            _financialTransaction.AuthorizedPersonAliasId = _automatedPaymentArgs.AuthorizedPersonAliasId;
-            _financialTransaction.ShowAsAnonymous = _automatedPaymentArgs.ShowAsAnonymous;
-            _financialTransaction.TransactionDateTime = RockDateTime.Now;
-            _financialTransaction.FinancialGatewayId = _financialGateway.Id;
-            _financialTransaction.TransactionTypeValueId = _transactionType.Id;
-            _financialTransaction.Summary = _referencePaymentInfo.Comment1;
-            _financialTransaction.SourceTypeValueId = _financialSource.Id;
+            financialTransaction.FinancialPaymentDetail.SetFromPaymentInfo( _referencePaymentInfo, _automatedGatewayComponent, _rockContext );
 
-            if ( _financialTransaction.FinancialPaymentDetail == null )
+            var hasFeeInfo = _payment.FeeAmount.HasValue;
+            var totalFeeRemaining = _payment.FeeAmount;
+            var numberOfDetails = _automatedPaymentArgs.AutomatedPaymentDetails.Count;
+            var roundedFee = hasFeeInfo ? Math.Round( _payment.FeeAmount.Value / numberOfDetails, 2 ) : (decimal?)null;
+
+            for ( var i = 0; i < numberOfDetails; i++ )
             {
-                _financialTransaction.FinancialPaymentDetail = new FinancialPaymentDetail();
-            }
+                var detailArgs = _automatedPaymentArgs.AutomatedPaymentDetails[i];
+                var isLastDetail = ( i + 1 ) == numberOfDetails;
 
-            _financialTransaction.FinancialPaymentDetail.SetFromPaymentInfo( _referencePaymentInfo, _automatedGatewayComponent, _rockContext );
-
-            foreach ( var detailArgs in _automatedPaymentArgs.AutomatedPaymentDetails )
-            {
                 var transactionDetail = new FinancialTransactionDetail();
                 transactionDetail.Amount = detailArgs.Amount;
                 transactionDetail.AccountId = detailArgs.AccountId;
 
-                _financialTransaction.TransactionDetails.Add( transactionDetail );
+                if ( hasFeeInfo )
+                {
+                    transactionDetail.FeeAmount = isLastDetail ? totalFeeRemaining : roundedFee;
+                    totalFeeRemaining = totalFeeRemaining - transactionDetail.FeeAmount;
+                }
+
+                financialTransaction.TransactionDetails.Add( transactionDetail );
             }
 
             var batch = _financialBatchService.Get(
                 _automatedPaymentArgs.BatchNamePrefix ?? "Online Giving",
                 _referencePaymentInfo.CurrencyTypeValue,
                 _referencePaymentInfo.CreditCardTypeValue,
-                _financialTransaction.TransactionDateTime.Value,
+                financialTransaction.TransactionDateTime.Value,
                 _financialGateway.GetBatchTimeOffset() );
 
             var batchChanges = new History.HistoryChangeList();
@@ -566,17 +591,17 @@ namespace Rock.Financial
                 History.EvaluateChange( batchChanges, "End Date/Time", null, batch.BatchEndDateTime );
             }
 
-            var newControlAmount = batch.ControlAmount + _financialTransaction.TotalAmount;
+            var newControlAmount = batch.ControlAmount + financialTransaction.TotalAmount;
             History.EvaluateChange( batchChanges, "Control Amount", batch.ControlAmount.FormatAsCurrency(), newControlAmount.FormatAsCurrency() );
             batch.ControlAmount = newControlAmount;
 
-            _financialTransaction.BatchId = batch.Id;
-            _financialTransaction.LoadAttributes( _rockContext );
+            financialTransaction.BatchId = batch.Id;
+            financialTransaction.LoadAttributes( _rockContext );
 
-            batch.Transactions.Add( _financialTransaction );
+            batch.Transactions.Add( financialTransaction );
 
             _rockContext.SaveChanges();
-            _financialTransaction.SaveAttributeValues();
+            financialTransaction.SaveAttributeValues();
 
             HistoryService.SaveChanges(
                 _rockContext,
@@ -585,6 +610,8 @@ namespace Rock.Financial
                 batch.Id,
                 batchChanges
             );
+
+            return financialTransaction;
         }
     }
 }
