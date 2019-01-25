@@ -418,7 +418,7 @@ namespace Rock.Financial
             };
 
             var automatedGatewayComponent = _automatedGatewayComponent as IAutomatedGatewayComponent;
-            _payment = automatedGatewayComponent.AutomatedCharge( _financialGateway, _referencePaymentInfo, out errorMessage );
+            _payment = automatedGatewayComponent.AutomatedCharge( _financialGateway, _referencePaymentInfo, out errorMessage, metadata );
 
             if ( !string.IsNullOrEmpty( errorMessage ) )
             {
@@ -553,20 +553,24 @@ namespace Rock.Financial
             var hasFeeInfo = _payment.FeeAmount.HasValue;
             var totalFeeRemaining = _payment.FeeAmount;
             var numberOfDetails = _automatedPaymentArgs.AutomatedPaymentDetails.Count;
-            var roundedFee = hasFeeInfo ? Math.Round( _payment.FeeAmount.Value / numberOfDetails, 2 ) : (decimal?)null;
-
+            
             for ( var i = 0; i < numberOfDetails; i++ )
             {
                 var detailArgs = _automatedPaymentArgs.AutomatedPaymentDetails[i];
-                var isLastDetail = ( i + 1 ) == numberOfDetails;
 
-                var transactionDetail = new FinancialTransactionDetail();
-                transactionDetail.Amount = detailArgs.Amount;
-                transactionDetail.AccountId = detailArgs.AccountId;
+                var transactionDetail = new FinancialTransactionDetail
+                {
+                    Amount = detailArgs.Amount,
+                    AccountId = detailArgs.AccountId
+                };
 
                 if ( hasFeeInfo )
                 {
-                    transactionDetail.FeeAmount = isLastDetail ? totalFeeRemaining : roundedFee;
+                    var isLastDetail = ( i + 1 ) == numberOfDetails;
+                    var percentOfTotal = detailArgs.Amount / _payment.Amount;
+                    var apportionedFee = Math.Round( percentOfTotal * _payment.FeeAmount.Value, 2 );
+
+                    transactionDetail.FeeAmount = isLastDetail ? totalFeeRemaining : apportionedFee;
                     totalFeeRemaining = totalFeeRemaining - transactionDetail.FeeAmount;
                 }
 
