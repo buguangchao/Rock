@@ -540,7 +540,8 @@ namespace Rock.Financial
                 SourceTypeValueId = _financialSource.Id,
                 IsSettled = _payment.IsSettled,
                 Status = _payment.Status,
-                StatusMessage = _payment.StatusMessage
+                StatusMessage = _payment.StatusMessage,
+                SettledDate = _payment.SettledDate
             };            
             
             if ( financialTransaction.FinancialPaymentDetail == null )
