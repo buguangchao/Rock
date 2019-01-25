@@ -95,7 +95,7 @@ namespace Rock.Financial
         /// <param name="errorMessage">The error message.</param>
         /// <param name="metaData">Optional. Meta data key value pairs to send to the gateway</param>
         /// <returns></returns>
-        public Payment AutomatedCharge( FinancialGateway financialGateway, ReferencePaymentInfo paymentInfo, out string errorMessage, Dictionary<string, string> metaData = null )
+        public Payment AutomatedCharge( FinancialGateway financialGateway, ReferencePaymentInfo paymentInfo, out string errorMessage, Dictionary<string, string> metadata = null )
         {
             errorMessage = string.Empty;
             var transaction = Charge( financialGateway, paymentInfo, out errorMessage );

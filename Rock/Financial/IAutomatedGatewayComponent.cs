@@ -29,9 +29,9 @@ namespace Rock.Financial
         /// </summary>
         /// <param name="financialGateway">The financial gateway.</param>
         /// <param name="paymentInfo">The payment info.</param>
-        /// <param name="metaData">Optional. Meta data key value pairs to send to the gateway</param>
+        /// <param name="metadata">Optional. Additional key value pairs to send to the gateway</param>
         /// <param name="errorMessage">The error message.</param>
         /// <returns></returns>
-        Payment AutomatedCharge( FinancialGateway financialGateway, ReferencePaymentInfo paymentInfo, out string errorMessage, Dictionary<string, string> metaData = null );
+        Payment AutomatedCharge( FinancialGateway financialGateway, ReferencePaymentInfo paymentInfo, out string errorMessage, Dictionary<string, string> metadata = null );
     }
 }
