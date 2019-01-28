@@ -541,12 +541,28 @@ namespace Rock.Financial
                 IsSettled = _payment.IsSettled,
                 Status = _payment.Status,
                 StatusMessage = _payment.StatusMessage,
-                SettledDate = _payment.SettledDate
+                SettledDate = _payment.SettledDate,
+                ForeignKey = _payment.ForeignKey
             };            
             
-            if ( financialTransaction.FinancialPaymentDetail == null )
+            financialTransaction.FinancialPaymentDetail = new FinancialPaymentDetail
             {
-                financialTransaction.FinancialPaymentDetail = new FinancialPaymentDetail();
+                AccountNumberMasked = _payment.AccountNumberMasked,
+                NameOnCardEncrypted = _payment.NameOnCardEncrypted,
+                ExpirationMonthEncrypted = _payment.ExpirationMonthEncrypted,
+                ExpirationYearEncrypted = _payment.ExpirationYearEncrypted,
+                CreatedByPersonAliasId = _currentPersonAliasId,
+                ForeignKey = _payment.ForeignKey
+            };
+
+            if (_payment.CurrencyTypeValue != null)
+            {
+                financialTransaction.FinancialPaymentDetail.CurrencyTypeValueId = _payment.CurrencyTypeValue.Id;
+            }
+
+            if ( _payment.CreditCardTypeValue != null )
+            {
+                financialTransaction.FinancialPaymentDetail.CreditCardTypeValueId = _payment.CreditCardTypeValue.Id;
             }
 
             financialTransaction.FinancialPaymentDetail.SetFromPaymentInfo( _referencePaymentInfo, _automatedGatewayComponent, _rockContext );

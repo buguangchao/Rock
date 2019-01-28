@@ -34,7 +34,6 @@ namespace Rock.Rest.Controllers
         /// endpoint does not require authentication.
         /// </summary>
         /// <param name="guid">The FinancialGateway guid</param>
-        /// <param name="encodedRequestBody"></param>
         /// <returns></returns>
         [HttpPost]
         [Route( "api/FinancialGateways/Webhook/{guid:guid}" )]

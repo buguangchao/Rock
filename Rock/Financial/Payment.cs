@@ -110,5 +110,37 @@ namespace Rock.Financial
         /// Additional payment attributes
         /// </summary>
         public Dictionary<string, string> Attributes { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Masked Account Number (Last 4 of Account Number prefixed with 12 *'s)
+        /// </summary>
+        /// <value>
+        /// The account number masked.
+        /// </value>
+        public string AccountNumberMasked { get; set; }
+
+        /// <summary>
+        /// Gets or sets the name on card encrypted.
+        /// </summary>
+        /// <value>
+        /// The name on card encrypted.
+        /// </value>
+        public string NameOnCardEncrypted { get; set; }
+
+        /// <summary>
+        /// Gets or sets the expiration month encrypted.
+        /// </summary>
+        /// <value>
+        /// The expiration month encrypted.
+        /// </value>
+        public string ExpirationMonthEncrypted { get; set; }
+
+        /// <summary>
+        /// Gets or sets the expiration year encrypted.
+        /// </summary>
+        /// <value>
+        /// The expiration year encrypted.
+        /// </value>
+        public string ExpirationYearEncrypted { get; set; }
     }
 }
