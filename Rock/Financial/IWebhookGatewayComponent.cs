@@ -15,6 +15,7 @@
 // </copyright>
 //
 using System.Net.Http.Headers;
+using System.Web;
 using Rock.Model;
 
 namespace Rock.Financial
@@ -25,12 +26,14 @@ namespace Rock.Financial
     public interface IWebhookGatewayComponent
     {
         /// <summary>
-        /// Handle a webhook event from a gateway.
+        /// Handle a webhook event from a gateway. If used, it is recommended to limit network
+        /// traffic to the webhook endpoint on the FinancialGateway controller specifically to
+        /// the gateway's URL
         /// </summary>
         /// <param name="financialGateway">The financial gateway</param>
-        /// <param name="requestHeaders">The headers from the webhook request</param>
-        /// <param name="encodedRequestBody">The encoded body of the request from the gateway</param>
+        /// <param name="requestHeaders">The headers from the webhook request.</param>
+        /// <param name="request">The request from the gateway. Can be used to obtain the body.</param>
         /// <returns>True if the webhook was handled successfully, false otherwise</returns>
-        bool HandleWebhook( FinancialGateway financialGateway, HttpRequestHeaders requestHeaders, string encodedRequestBody );
+        bool HandleWebhook( FinancialGateway financialGateway, HttpRequestHeaders requestHeaders, HttpRequest request );
     }
 }

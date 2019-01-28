@@ -31,13 +31,17 @@ namespace Rock.Rest.Controllers
     {
         /// <summary>
         /// Allows a IWebhookGatewayComponent to handle a webhook request from a gateway. This
-        /// endpoint does not require authentication.
+        /// endpoint does not require authentication. If used, it is recommended to limit network
+        /// traffic to this endpoint specifically to the gateway's URL
         /// </summary>
-        /// <param name="guid">The FinancialGateway guid</param>
+        /// <param name="guid">The FinancialGateway guid. This is a query parameter because
+        /// those are encrypted by HTTPS.
+        /// https://stackoverflow.com/a/2629241
+        /// </param>
         /// <returns></returns>
         [HttpPost]
-        [Route( "api/FinancialGateways/Webhook/{guid:guid}" )]
-        public HttpResponseMessage HandleWebhook( Guid guid )
+        [Route( "api/FinancialGateways/Webhook" )]
+        public HttpResponseMessage HandleWebhook( [FromUri]Guid guid )
         {
             if ( guid.IsEmpty() )
             {
@@ -58,11 +62,7 @@ namespace Rock.Rest.Controllers
                 return ControllerContext.Request.CreateResponse( HttpStatusCode.NotFound );
             }
 
-            var bodyStream = new StreamReader( HttpContext.Current.Request.InputStream );
-            bodyStream.BaseStream.Seek( 0, SeekOrigin.Begin );
-            var encodedRequestBody = bodyStream.ReadToEnd();
-
-            var success = webhookGatewayComponent.HandleWebhook( financialGateway, Request.Headers, encodedRequestBody );
+            var success = webhookGatewayComponent.HandleWebhook( financialGateway, Request.Headers, HttpContext.Current.Request );
             var statusCode = success ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
             return ControllerContext.Request.CreateResponse( statusCode );
         }
